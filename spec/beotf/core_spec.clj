@@ -22,4 +22,31 @@
           (it "transforms double parenthesis to actual parenthesis"
               (should (i "<p>as(bs)df</p>" (beotf "as((bs))df")))))
 
+; these functions will be used in the next tests
+(defn- signature-test-block          [b] 1)
+(defn- signature-test-lineline       [a b] 1)
+(defn- signature-test-lines          [& a] 1)
+(defn- signature-test-linelinelines  [a b & c] 1)
+(defn- signature-test-blocke         [^:block b] 1)
+(defn- signature-test-worde          [^:word w] 1)
+(defn- signature-test-linee          [^:line l] 1)
+(defn- signature-test-wordse         [& ^:word w] 1)
+(defn- signature-test-linese         [& ^:line l] 1)
+(defn- signature-test-wordlinelines  [^:word w ^:line l & ls] 1)
+
+(describe "extraction of signature of function definitions"
+          (it "applies sensible defaults" (pending)
+              (should= [:block]              (signature signature-test-block))
+              (should= [:line :line]         (signature signature-test-lineline))
+              (should= [[:line]]             (signature signature-test-lines))
+              (should= [:line :line [:line]] (signature signature-test-linelinelines)))
+
+          (it "honors meta data information" (pending)
+              (should= [:block]              (signature signature-test-blocke))
+              (should= [:word]               (signature signature-test-worde))
+              (should= [:line]               (signature signature-test-linee))
+              (should= [[:word]]             (signature signature-test-wordse))
+              (should= [[:line]]             (signature signature-test-linese))
+              (should= [:word :line [:line]] (signature signature-test-wordlinelines))))
+
 (run-specs)

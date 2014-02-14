@@ -54,3 +54,5 @@
   "Takes a beotf plain input file, and makes a HTML output file"
   [file-name]
   (spit (str file-name ".html") (layout file-name (slurp file-name))))
+
+(defn signature [])
