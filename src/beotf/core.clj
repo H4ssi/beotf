@@ -55,4 +55,27 @@
   [file-name]
   (spit (str file-name ".html") (layout file-name (slurp file-name))))
 
-(defn signature [])
+(defn signature-fn-var
+  "Given function var, it determines the signature for the corresponding blo plain text form"
+  [function-var]
+  (let [args  (first (:arglists (meta function-var)))
+        token (fn [arg]
+                (first (first (select-keys (meta arg) [:word :line :block]))))
+        next  (fn [sig n] 
+                (if (= '& n)
+                  (conj sig []) ; create nested list, when we reach &
+                  (if (vector? (peek sig)) ; are we already in nested list?
+                    (conj (pop sig) (conj (peek sig) (token n))) ; append to nested list
+                    (conj sig (token n))))) ; append to outer list
+        sig   (reduce next [] args)]
+    ; our signature is nearly ready, what is left, is to apply default values, if no meta data was specified
+    (if (= [nil] sig)
+      [:block] ; a func with a single arg will accept whole block
+      (mapv #(if (vector? %) ; handle nested [] again, we want to replace nil with :line
+               (mapv (fnil identity :line) %) ; fnil identity is like coalesce
+               ((fnil identity :line) %)) sig))))
+
+(defmacro signature
+  "Given a function, with properly annotated arguments, it determines the signature for the corresponding blog plain text form"
+  [f]
+  `(signature-fn-var #'~f))

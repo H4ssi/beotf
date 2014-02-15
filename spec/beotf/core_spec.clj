@@ -35,13 +35,13 @@
 (defn- signature-test-wordlinelines  [^:word w ^:line l & ls] 1)
 
 (describe "extraction of signature of function definitions"
-          (it "applies sensible defaults" (pending)
+          (it "applies sensible defaults"
               (should= [:block]              (signature signature-test-block))
               (should= [:line :line]         (signature signature-test-lineline))
               (should= [[:line]]             (signature signature-test-lines))
               (should= [:line :line [:line]] (signature signature-test-linelinelines)))
 
-          (it "honors meta data information" (pending)
+          (it "honors meta data information"
               (should= [:block]              (signature signature-test-blocke))
               (should= [:word]               (signature signature-test-worde))
               (should= [:line]               (signature signature-test-linee))
