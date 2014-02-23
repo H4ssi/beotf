@@ -79,3 +79,5 @@
   "Given a function, with properly annotated arguments, it determines the signature for the corresponding blog plain text form"
   [f]
   `(signature-fn-var #'~f))
+
+(defn parse [])
