@@ -57,32 +57,32 @@
             :d [:word :block]
             :e [:word :line [:line]]}]
   (describe "parsing of plain text"
-            (it "can parse a single form" (pending)
+            (it "can parse a single form"
                 (should= '[(a "block\nblock\nblock")] (parse sigs "(a block\nblock\nblock)")))
 
-            (it "can parse nested forms" (pending)
+            (it "can parse nested forms"
                 (should= '[(a (a "block\nblock"))] (parse sigs "(a (a block\nblock))")))
 
-            (it "can parse consecutive forms" (pending)
+            (it "can parse consecutive forms"
                 (should= '[[(a "a\na") (a "b\nb")]] (parse sigs "(a a\na)(a b\nb)")))
 
-            (it "can parse mixed forms and strings" (pending)
+            (it "can parse mixed forms and strings"
                 (should= '[["pre " (a "a") " post"]] (parse sigs "pre (a a) post"))
                 (should= '[(b ["pre " (b "in") " post"])] (parse sigs "(b pre (b in) post)")))
 
-            (it "respects form signature" (pending)
+            (it "respects form signature"
                 (should= '[(c "asdf bsdf" "csdf dsdf")] (parse sigs "(c asdf bsdf\ncsdf dsdf)"))
                 (should= '[(d "word" "asdf\nbsdf")] (parse sigs "(d word asdf\nbsdf)"))
                 (should= '[(d (a "form word") "asdf\nbsdf")] (parse sigs "(d (a form word) asdf\nbsdf)"))
                 (should= '[(e "word" "line asdf" "line bsdf" "line csdf")] (parse sigs "(e word line asdf\nline bsdf\nline csdf)")))
 
-            (it "respects spaces" (pending)
+            (it "respects spaces"
                 (should= '[(d ["pre" (a "form word") "post"] "asdf\nbsdf")] (parse sigs "(d pre(a form word)post asdf\nbsdf)")))
 
-            (it "respects top level signature" (pending)
+            (it "respects top level signature"
                 (should= '["one" "two" "three"] (parse {nil [[:word]]} "one two three")))
 
-            (it "parses double parenthesis" (pending)
+            (it "parses double parenthesis"
                 (should= '[(())] (parse sigs "(())")))))
 
 (run-specs)

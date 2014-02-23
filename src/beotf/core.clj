@@ -79,5 +79,96 @@
   "Given a function, with properly annotated arguments, it determines the signature for the corresponding blog plain text form"
   [f]
   `(signature-fn-var #'~f))
+  
+(defn- normalize-signature
+  "transforms signature in a normalform, which helps at parsing,
+  e.g. [[:word]] -normalize-> [:word [:word]] -normalize-> [:word [:word]]"
+  [sig]
+  (if (vector? (first sig))
+    (reduce into [(first sig) [(first sig)] (subvec sig 1)])
+    sig))
 
-(defn parse [])
+(defn parse
+  "parses a plain text string given signatures of to be parsed symbols"
+  [sigs plain]
+  (let [conj-nil (fn [coll e] (if (nil? e)
+                                coll
+                                (conj coll e)))
+        flatten-singleton (fn [coll] (case (count coll) 
+                                       (0 1) (first coll) 
+                                       coll))
+        conj-char-buffer (fn [buffer c] (let [l (peek buffer)]
+                                          (if (string? l)
+                                            (conj (pop buffer) (str l c))
+                                            (conj buffer (str c)))))]
+    (loop [[c & cs] plain
+           buffers nil
+           buffer []
+           modes nil
+           mode (normalize-signature (get sigs nil [:block]))
+           forms nil
+           form []]
+      (case c
+        ; on ( prepare to start parsing the next function
+        \( (recur cs
+                  (conj buffers buffer) 
+                  []
+                  (conj modes mode)
+                  nil ; need to wait for the function symbol, before mode is known
+                  (conj forms form) ; put current form on hold
+                  []) ; new form is empty for now
+
+        ; on ) and EOF complete parsed function/form, and only on ) continue parsing
+        (\) nil) (let [form-vector (conj-nil form (flatten-singleton buffer))] ; construct completed form 
+                   (if (nil? c)
+                     form-vector ; got EOF
+                     (recur cs   ; got ) 
+                            (rest buffers)
+                            (conj (first buffers) (sequence form-vector)) ; add completed form to previous buffer
+                            (rest modes)
+                            (first modes)    ; restore the previous mode
+                            (rest forms)     ; restore the previous forms                  
+                            (first forms)))) ; restore previous form
+
+        ; whitespace may be end of buffer/token
+        (\space 
+          \tab 
+          \newline 
+          \return) (let [m (first mode),
+                         needs-buffer (some #(= m %) [nil :word])
+                         is-break (some #(= c %) [\newline \return])]
+                     (cond
+                       (and needs-buffer (empty? buffer))
+                       (recur cs buffers buffer modes mode forms form)
+
+                       (nil? m) ; got function symbol   
+                       (let [s (apply str buffer)
+                             k (keyword s)]
+                         (if (k sigs) ; get signature of corresponding function
+                           (recur
+                             cs
+                             buffers
+                             []
+                             modes
+                             (normalize-signature (k sigs))
+                             forms
+                             [(symbol s)])
+                           (throw (Exception. (str "no such operation: " buffer)))))
+
+                       (or 
+                         (= m :word) ; got word parameter
+                         (and is-break (= m :line))) ; got line param
+                       (recur 
+                         cs
+                         buffers 
+                         []
+                         modes
+                         (normalize-signature (subvec mode 1))
+                         forms
+                         (conj form (flatten-singleton buffer)))
+
+                       :else ; continue parsing
+                       (recur cs buffers (conj-char-buffer buffer c) modes mode forms form)))
+
+        ; otherwise, just continue parsing
+        (recur cs buffers (conj-char-buffer buffer c) modes mode forms form)))))
