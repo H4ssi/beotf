@@ -85,4 +85,19 @@
             (it "parses double parenthesis"
                 (should= '[(())] (parse sigs "(())")))))
 
+(let [tree '[(b (a ["combined" (param)]) (b "a" (a (()))))]
+      capsA {'b (fn [a b] (list 'b a b))
+             'a (fn [c]   (list 'A c))}
+      debug (fn [p s] #_(println p ": " s) s) ; disabled for now
+      formStr (fn [s & as] (str \( s " " (clojure.string/join " " as) \)))
+      toStr {'b (fn [a b] (debug "b<a" a) (debug "b<b" b) (debug "b" (formStr 'b a b)))
+             'a (fn [c]   (debug "a<c" c) (debug "a" (formStr 'a c)))
+             :join (fn [x] (debug "j" (str \[ (clojure.string/join " " x) \])))
+             :document-root (fn [x] (debug "d" (str \[ (clojure.string/join " " x) \])))
+             :string (fn [s] (debug "s" (str \" s \")))}]
+  (describe "syntax tree walking"
+            (it "transforms the syntax tree" (pending)
+                (should= '[(b (A ["combined" (param)]) (b "a" (A (()))))] (tree-walk tree capsA))
+                (should= "[(b (a [\"combined\" (param)]) (b \"a\" (a (()))))]" (tree-walk tree toStr)))))
+
 (run-specs)
