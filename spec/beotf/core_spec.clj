@@ -82,8 +82,12 @@
             (it "respects top level signature"
                 (should= '["one" "two" "three"] (parse {nil [[:word]]} "one two three")))
 
-            (it "parses double parenthesis"
-                (should= '[(())] (parse sigs "(())")))))
+            (it "parses double parenthesis" (pending)
+                (should= '[(())] (parse sigs "(())"))
+                (should= '[(("asdf"))] (parse sigs "((asdf))"))
+                (should= '[(("a block"))] (parse sigs "((a block))"))
+                (should= '[((a "block"))] (parse sigs "( (a block))"))
+                (should= '[(("a" "block"))] (parse {() [[:word]]} "((a block))")))))
 
 (let [tree '[(b (a ["combined" (param)]) (b "a" (a (()))))]
       capsA {'b (fn [a b] (list 'b a b))
