@@ -112,22 +112,26 @@
                                           (if (string? l)
                                             (conj (pop buffer) (str l c))
                                             (conj buffer (str c)))))]
-    (loop [[c & cs] plain
-           buffers nil
+    (loop [[c & cs] plain ; when parsing nested structure, current state (outer data) is put onto stack, if inner data is parsed
+           buffers nil ; parsed data is stored in the buffer, until its kind is actually known (e.g. symbol, parameter, complete form)
            buffer []
-           modes nil
+           modes nil ; mode stores the signature of arglist to parse (e.g. [:line], [:block]), the array is popped during parsing, its first element is the type of next arg
            mode (normalize-signature (get sigs nil [:block]))
-           forms nil
-           form []]
+           forms nil ; stores parsed forms
+           form []
+           prev-was-paren? false] ; true if the previous symbol was a open parenthesis
       (case c
         ; on ( prepare to start parsing the next function
         \( (recur cs
                   (conj buffers buffer) 
                   []
                   (conj modes mode)
-                  nil ; need to wait for the function symbol, before mode is known
+                  (if prev-was-paren?
+                    (normalize-signature (get sigs () [:block])) ; got double parenthesis, continue parsing args (skip function symbol)
+                    nil) ; otherwise, need to wait for the function symbol of the form, before mode is known
                   (conj forms form) ; put current form on hold
-                  []) ; new form is empty for now
+                  [] ; new form is empty for now
+                  (not prev-was-paren?))
 
         ; on ) and EOF complete parsed function/form, and only on ) continue parsing
         (\) nil) (let [form-vector (conj-nil form (flatten-singleton buffer))] ; construct completed form 
@@ -139,7 +143,8 @@
                             (rest modes)
                             (first modes)    ; restore the previous mode
                             (rest forms)     ; restore the previous forms                  
-                            (first forms)))) ; restore previous form
+                            (first forms)    ; restore previous form
+                            false)))
 
         ; whitespace may be end of buffer/token
         (\space 
@@ -150,7 +155,7 @@
                          is-break (some #(= c %) [\newline \return])]
                      (cond
                        (and needs-buffer (empty? buffer))
-                       (recur cs buffers buffer modes mode forms form)
+                       (recur cs buffers buffer modes mode forms form false)
 
                        (nil? m) ; got function symbol   
                        (let [s (apply str buffer)
@@ -163,7 +168,8 @@
                              modes
                              (normalize-signature (k sigs))
                              forms
-                             [(symbol s)])
+                             [(symbol s)]
+                             false)
                            (throw (Exception. (str "no such operation: " buffer)))))
 
                        (or 
@@ -176,13 +182,14 @@
                          modes
                          (normalize-signature (subvec mode 1))
                          forms
-                         (conj form (flatten-singleton buffer)))
+                         (conj form (flatten-singleton buffer))
+                         false)
 
                        :else ; continue parsing
-                       (recur cs buffers (conj-char-buffer buffer c) modes mode forms form)))
+                       (recur cs buffers (conj-char-buffer buffer c) modes mode forms form false)))
 
         ; otherwise, just continue parsing
-        (recur cs buffers (conj-char-buffer buffer c) modes mode forms form)))))
+        (recur cs buffers (conj-char-buffer buffer c) modes mode forms form false)))))
 
 (defn tree-walk 
   "gets a tree and transform instructions, walks that tree and collects all transformation requests, then transforms the tree"

@@ -82,7 +82,7 @@
             (it "respects top level signature"
                 (should= '["one" "two" "three"] (parse {nil [[:word]]} "one two three")))
 
-            (it "parses double parenthesis" (pending)
+            (it "parses double parenthesis"
                 (should= '[(())] (parse sigs "(())"))
                 (should= '[(("asdf"))] (parse sigs "((asdf))"))
                 (should= '[(("a block"))] (parse sigs "((a block))"))
