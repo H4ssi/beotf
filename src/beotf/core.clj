@@ -1,6 +1,6 @@
 (ns beotf.core
   (:gen-class)
-  (:require clojure.string))
+  (:require clojure.string clojure.zip))
 
 (declare beotf-file)
 
@@ -173,4 +173,55 @@
         ; otherwise, just continue parsing
         (recur cs buffers (conj-char-buffer buffer c) modes mode forms form)))))
 
-(defn tree-walk [])
+(defn tree-walk 
+  "gets a tree and transform instructions, walks that tree and collects all transformation requests, then transforms the tree"
+  ([tree instructions] (tree-walk tree instructions nil))
+  ([tree instructions label]
+   (let [is-form? (fn [f] (and (seq? f) (symbol? (first f))))
+         can-have-children? (fn [b] (or (seq? b) (vector? b)))
+         get-children (fn [b] (if (is-form? b) (next b) (seq b))) ; care () != nil
+         set-children (fn [b cs] (if (is-form? b)
+                                   (list* (first b) cs)
+                                   (into (empty b) cs)))
+
+         z (clojure.zip/zipper can-have-children? get-children set-children tree)
+
+         select (fn [func-key] ((fnil identity identity) (get instructions func-key)))
+
+         transform (fn [node is-root?]
+                     (cond
+                       is-root? 
+                       ((select :document-root) node)
+
+                       (string? node) 
+                       ((select :string) node)
+
+                       (vector? node) 
+                       ((select :join) node)
+
+                       (and (seq? node) (seq node) (seq? (first node))) ; double ((...))
+                       ((select :parenthesis) node)
+
+                       (and (seq? node) (seq node) (contains? instructions (first node))) ; applicable form
+                       (apply (select (first node)) (rest node))
+
+                       :else
+                       node))]
+     (loop [forward z
+            prev nil]
+       (if (not (clojure.zip/end? forward))
+
+         ; go forward
+         (recur (clojure.zip/next forward) 
+                forward)
+         ; go backward  
+         (loop [backward prev
+                prev2 nil]
+           (if (not (nil? backward))
+             ; now we join the tree
+             (let [n (clojure.zip/node backward)
+                   r (clojure.zip/replace backward (transform n (not (clojure.zip/up backward))))]
+               (recur (clojure.zip/prev r) r))
+
+             ; we are finished!
+             (clojure.zip/node prev2))))))))                           

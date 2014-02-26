@@ -96,7 +96,7 @@
              :document-root (fn [x] (debug "d" (str \[ (clojure.string/join " " x) \])))
              :string (fn [s] (debug "s" (str \" s \")))}]
   (describe "syntax tree walking"
-            (it "transforms the syntax tree" (pending)
+            (it "transforms the syntax tree"
                 (should= '[(b (A ["combined" (param)]) (b "a" (A (()))))] (tree-walk tree capsA))
                 (should= "[(b (a [\"combined\" (param)]) (b \"a\" (a (()))))]" (tree-walk tree toStr)))))
 
