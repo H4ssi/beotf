@@ -14,15 +14,26 @@
       (beotf-file file-name)
       (println "Done!"))))
 
+(declare parse)
+(declare tree-walk)
+
 (defn beotf
   "Simple string manipulation based implementation of bare specs, transforms plain blog syntax to html"
   [plain]
-  (let [lines           (clojure.string/split-lines plain)
-        trimmed-lines   (map clojure.string/trim lines)
-        non-empty-lines (filter #(seq %) trimmed-lines)
-        parenthesis     (map #(clojure.string/replace (clojure.string/replace % #"\(\(" "(") #"\)\)" ")") non-empty-lines)
-        paragraphs      (map #(str "<p>" % "</p>") parenthesis)]
-    (clojure.string/join paragraphs)))
+  (let [tree (parse {nil [[:line]]} plain)]
+    (tree-walk tree {:document-root (fn [ls] 
+                                      (clojure.string/join 
+                                        (map ; wrap in p tags
+                                             #(str "<p>" % "</p>")
+                                             (filter ; filter empty
+                                                     #(seq %) 
+                                                     (map ; trim
+                                                          clojure.string/trim
+                                                          (filter ; filter non null
+                                                                  #(not (nil? %))  
+                                                                  ls))))))
+                     :parenthesis (fn [i] (str \( (first (first i)) \)))
+                     :join (fn [v] (clojure.string/join v)) })))
 
 (defn layout
   "Makes a nice, complete html page, you need to supply a title, and the plain blog syntax"
