@@ -51,13 +51,15 @@
 
 ; todo: some negative tests! 
 (let [sigs {nil [:block]
+            :sym []
             :a [:block]
             :b [:line]
             :c [:line :line]
             :d [:word :block]
             :e [:word :line [:line]]}]
   (describe "parsing of plain text"
-            (it "can parse a single form"
+            (it "can parse a single form" (pending)
+                (should= '[(sym)] (parse sigs "(sym)"))
                 (should= '[(a "block\nblock\nblock")] (parse sigs "(a block\nblock\nblock)")))
 
             (it "can parse nested forms"
