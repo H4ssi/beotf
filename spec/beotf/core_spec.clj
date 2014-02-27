@@ -58,7 +58,7 @@
             :d [:word :block]
             :e [:word :line [:line]]}]
   (describe "parsing of plain text"
-            (it "can parse a single form" (pending)
+            (it "can parse a single form"
                 (should= '[(sym)] (parse sigs "(sym)"))
                 (should= '[(a "block\nblock\nblock")] (parse sigs "(a block\nblock\nblock)")))
 
