@@ -14,26 +14,12 @@
       (beotf-file file-name)
       (println "Done!"))))
 
-(declare parse)
-(declare tree-walk)
+(declare parse tree-walk beotf-html)
 
 (defn beotf
   "Simple string manipulation based implementation of bare specs, transforms plain blog syntax to html"
   [plain]
-  (let [tree (parse {nil [[:line]]} plain)]
-    (tree-walk tree {:document-root (fn [ls] 
-                                      (clojure.string/join 
-                                        (map ; wrap in p tags
-                                             #(str "<p>" % "</p>")
-                                             (filter ; filter empty
-                                                     #(seq %) 
-                                                     (map ; trim
-                                                          clojure.string/trim
-                                                          (filter ; filter non null
-                                                                  #(not (nil? %))  
-                                                                  ls))))))
-                     :parenthesis (fn [i] (str \( (first (first i)) \)))
-                     :join (fn [v] (clojure.string/join v)) })))
+  (beotf-html plain))
 
 (defn layout
   "Makes a nice, complete html page, you need to supply a title, and the plain blog syntax"
@@ -222,7 +208,7 @@
          transform (fn [node is-root?]
                      (cond
                        is-root? 
-                       ((select :document-root) node)
+                       (apply (select :document-root) node)
 
                        (string? node) 
                        ((select :string) node)
@@ -256,3 +242,59 @@
 
              ; we are finished!
              (clojure.zip/node prev2))))))))                           
+
+(defn emit-ps 
+  "emits html paragraphs"
+  [& ^:line ps]
+  (clojure.string/join 
+    (map ; wrap in p tags
+         #(str "<p>" % "</p>")
+         (filter ; filter empty
+                 #(seq %) 
+                 (map ; trim
+                      clojure.string/trim
+                      (filter ; filter non null
+                              #(not (nil? %))  
+                              ps))))))
+
+(defn emit-h
+  "emits html headers"
+  [^:line h & ^:line ps]
+  (str "<h2>" h "</h2>" (apply emit-ps ps)))
+
+(defn emit-b
+  "emits html bold"
+  [^:block b]
+  (str "<b>" b "</b>"))
+
+(defn emit-link
+  "emits html a href link"
+  [^:word url ^:block link]
+  (str "<a href=\"" url "\">" link "</a>"))
+
+(defn emit-parenthesis
+  "emits () when (()) is used in plain text"
+  [i] (str \( (first (first i)) \)))
+
+(defn emit-join
+  "since transformation is done into string, join will just concat them"
+  [v] (clojure.string/join v))
+
+(defn beotf-parse 
+  "given parse signatures and transform instructions, parses and transforms given plain text"
+  [sigs instructions plain]
+  (let [tree (parse sigs plain)]
+    (tree-walk tree instructions)))
+
+(defmacro beotf-parser
+  "given a list of transform functions, generates a proper beotf-parser for those transformations"
+  [document-root join parenthesis & fn-vars]
+  (let [var-list (map (fn [x] (list 'var x)) fn-vars)] ; transforms (x y) to ((var x) (var y))
+    `(let [~'get-name (fn [~'v] (clojure.string/replace-first (:name (meta ~'v)) #"(.*-)" ""))]
+       #(beotf-parse 
+          (reduce (fn [~'h ~'i] (assoc ~'h (keyword (~'get-name ~'i)) (signature-fn-var ~'i))) {nil (signature ~document-root)} (list ~@var-list)) 
+          (reduce (fn [~'h ~'i] (assoc ~'h (symbol  (~'get-name ~'i)) (var-get ~'i))) {:document-root ~document-root :join ~join :parenthesis ~parenthesis} (list ~@var-list))  
+          %))))
+
+(def beotf-html (beotf-parser emit-ps emit-join emit-parenthesis emit-h emit-b emit-link)) 
+

@@ -82,6 +82,7 @@
                 (should= '[(d ["pre" (a "form word") "post"] "asdf\nbsdf")] (parse sigs "(d pre(a form word)post asdf\nbsdf)")))
 
             (it "respects top level signature"
+                (should= '["one" "two" "three"] (parse {nil [[:line]]} "one\ntwo\nthree"))
                 (should= '["one" "two" "three"] (parse {nil [[:word]]} "one two three")))
 
             (it "parses double parenthesis"
@@ -93,13 +94,14 @@
 
 (let [tree '[(b (a ["combined" (param)]) (b "a" (a (()))))]
       capsA {'b (fn [a b] (list 'b a b))
-             'a (fn [c]   (list 'A c))}
+             'a (fn [c]   (list 'A c))
+             :document-root (fn [& more] more)}
       debug (fn [p s] #_(println p ": " s) s) ; disabled for now
       formStr (fn [s & as] (str \( s " " (clojure.string/join " " as) \)))
       toStr {'b (fn [a b] (debug "b<a" a) (debug "b<b" b) (debug "b" (formStr 'b a b)))
              'a (fn [c]   (debug "a<c" c) (debug "a" (formStr 'a c)))
              :join (fn [x] (debug "j" (str \[ (clojure.string/join " " x) \])))
-             :document-root (fn [x] (debug "d" (str \[ (clojure.string/join " " x) \])))
+             :document-root (fn [& x] (debug "d" (str \[ (clojure.string/join " " x) \])))
              :string (fn [s] (debug "s" (str \" s \")))}]
   (describe "syntax tree walking"
             (it "transforms the syntax tree"
