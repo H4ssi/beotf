@@ -89,4 +89,15 @@
                 (should= '[(b (A ["combined" (param)]) (b "a" (A (()))))] (tree-walk tree capsA))
                 (should= "[(b (a [\"combined\" (param)]) (b \"a\" (a (()))))]" (tree-walk tree toStr)))))
 
+(defn- parser-test-r 
+  ([^:word w]  w)
+  ([context w] context))
+(defn- parser-test-a [^:word w] w) 
+
+(describe "complete parser"
+          (it "parses without context"
+              (should= "word" ((parser parser-test-r identity identity parser-test-a) "(a word)")))
+          (it "parses with context" (pending)
+              (should= :context ((parser parser-test-r identity identity parser-test-a) :context "(a word)"))))
+
 (run-specs)
