@@ -1,7 +1,7 @@
 (ns beotf.parser
   (:require (clojure string zip)))
 
-(defn signature-fn-var
+(defn signature-fn
   "Given function var, it determines the signature for the corresponding blo plain text form"
   [function-var]
   (let [args  (first (:arglists (meta function-var)))
@@ -24,7 +24,7 @@
 (defmacro signature
   "Given a function, with properly annotated arguments, it determines the signature for the corresponding blog plain text form"
   [f]
-  `(signature-fn-var #'~f))
+  `(signature-fn #'~f))
 
 (defn- normalize-signature
   "transforms signature in a normalform, which helps at parsing,
@@ -192,19 +192,37 @@
              ; we are finished!
              (clojure.zip/node prev2))))))))                           
 
-(defn parser-fn
+(defn parse-and-walk
   "given parse signatures and transform instructions, parses and transforms given plain text"
   [sigs instructions plain]
   (let [tree (parse sigs plain)]
     (tree-walk tree instructions)))
 
+(defn parser-fn
+  "given a list of transform function variables generates a proper beotf-parser for those transformations"
+  [document-root-var join-var parenthesis-var & more]
+  (let [[document-root-fn join-fn parenthesis-fn] (map var-get [document-root-var join-var parenthesis-var])
+        get-name   (fn [v] (clojure.string/replace-first (:name (meta v)) #"(.*-)" ""))
+        to-keyword (fn [v] (keyword (get-name v)))
+        to-symbol  (fn [v] (symbol  (get-name v)))
+        p          (fn [wrapped-doc-root-fn plain] 
+                     (parse-and-walk 
+                       (reduce (fn [h i] (assoc h (to-keyword i) (signature-fn i))) ; keyword -> signature 
+                               {nil (signature-fn document-root-var)} 
+                               more) 
+                       (reduce (fn [h i] (assoc h (to-symbol  i) (var-get i)))      ; symbol -> function
+                               {:document-root wrapped-doc-root-fn 
+                                :join join-fn
+                                :parenthesis parenthesis-fn} 
+                               more)  
+                       plain))]
+    (fn
+      ([plain]         (p document-root-fn plain))
+      ([context plain] (p (fn [& more] (apply document-root-fn context more)) plain)))))
+
 (defmacro parser
   "given a list of transform functions, generates a proper beotf-parser for those transformations"
   [document-root join parenthesis & fn-vars]
-  (let [var-list (map (fn [x] (list 'var x)) fn-vars)] ; transforms (x y) to ((var x) (var y))
-    `(let [~'get-name (fn [~'v] (clojure.string/replace-first (:name (meta ~'v)) #"(.*-)" ""))]
-       #(parser-fn 
-          (reduce (fn [~'h ~'i] (assoc ~'h (keyword (~'get-name ~'i)) (signature-fn-var ~'i))) {nil (signature ~document-root)} (list ~@var-list)) 
-          (reduce (fn [~'h ~'i] (assoc ~'h (symbol  (~'get-name ~'i)) (var-get ~'i))) {:document-root ~document-root :join ~join :parenthesis ~parenthesis} (list ~@var-list))  
-          %))))
+  (let [var-list (map #(list 'var %) fn-vars)]
+    `(parser-fn #'~document-root #'~join #'~parenthesis ~@var-list)))
 

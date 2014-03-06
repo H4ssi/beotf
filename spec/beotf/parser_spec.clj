@@ -97,7 +97,7 @@
 (describe "complete parser"
           (it "parses without context"
               (should= "word" ((parser parser-test-r identity identity parser-test-a) "(a word)")))
-          (it "parses with context" (pending)
+          (it "parses with context"
               (should= :context ((parser parser-test-r identity identity parser-test-a) :context "(a word)"))))
 
 (run-specs)
