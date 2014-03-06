@@ -17,44 +17,19 @@
 
 (defn beotf
   "Simple string manipulation based implementation of bare specs, transforms plain blog syntax to html"
-  [plain]
-  (beotf-html plain))
-
-(defn layout
-  "Makes a nice, complete html page, you need to supply a title, and the plain blog syntax"
-  [title plain]
-  (str "<!DOCTYPE html>
-       <html lang=\"en\">
-       <head>
-       <meta charset=\"utf-8\">
-       <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">
-       <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
-       <title>" 
-       title 
-       "</title>
-       <link href=\"//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css\" rel=\"stylesheet\">
-       </head>
-       <body>
-       <div class=\"container\">
-       <h1>" 
-       title
-       "</h1>"
-       (beotf plain)
-       "</div>
-       <script src=\"//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js\"></script>
-       <script src=\"//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js\"></script>
-       </body>
-       </html>"))
+  ([plain]           (beotf-html plain))
+  ([file-name plain] (beotf-html {:file-name file-name} plain)))
 
 (defn beotf-file
   "Takes a beotf plain input file, and makes a HTML output file"
   [file-name]
-  (spit (str file-name ".html") (layout file-name (slurp file-name))))
+  (spit (str file-name ".html") (beotf file-name (slurp file-name))))
 
 
-(defn emit-ps 
+
+(defn- helper-ps 
   "emits html paragraphs"
-  [& ^:line ps]
+  [ps]
   (clojure.string/join 
     (map ; wrap in p tags
          #(str "<p>" % "</p>")
@@ -66,10 +41,38 @@
                               #(not (nil? %))  
                               ps))))))
 
+(defn doc-root
+  "Makes a nice, complete html page, you need to supply a title, and the plain blog syntax"
+  [context & ^:line doc]
+  (if (map? context)
+    (str "<!DOCTYPE html>
+         <html lang=\"en\">
+         <head>
+         <meta charset=\"utf-8\">
+         <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">
+         <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+         <title>" 
+         (:file-name context) 
+         "</title>
+         <link href=\"//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css\" rel=\"stylesheet\">
+         </head>
+         <body>
+         <div class=\"container\">
+         <h1>" 
+         (:file-name context)
+         "</h1>"
+         (helper-ps doc)
+         "</div>
+         <script src=\"//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js\"></script>
+         <script src=\"//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js\"></script>
+         </body>
+         </html>")
+    (helper-ps (apply list context doc))))
+
 (defn emit-h
   "emits html headers"
   [^:line h & ^:line ps]
-  (str "<h2>" h "</h2>" (apply emit-ps ps)))
+  (str "<h2>" h "</h2>" (helper-ps ps)))
 
 (defn emit-b
   "emits html bold"
@@ -89,5 +92,5 @@
   "since transformation is done into string, join will just concat them"
   [v] (clojure.string/join v))
 
-(def beotf-html (p/parser emit-ps emit-join emit-parenthesis emit-h emit-b emit-link)) 
+(def beotf-html (p/parser doc-root emit-join emit-parenthesis emit-h emit-b emit-link)) 
 
