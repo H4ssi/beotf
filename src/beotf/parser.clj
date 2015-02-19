@@ -4,22 +4,28 @@
 (defn signature-fn
   "Given function var, it determines the signature for the corresponding blo plain text form"
   [function-var]
-  (let [args  (first (:arglists (meta function-var)))
-        token (fn [arg]
-                (first (first (select-keys (meta arg) [:word :line :block]))))
-        next  (fn [sig n] 
-                (if (= '& n)
-                  (conj sig []) ; create nested list, when we reach &
-                  (if (vector? (peek sig)) ; are we already in nested list?
-                    (conj (pop sig) (conj (peek sig) (token n))) ; append to nested list
-                    (conj sig (token n))))) ; append to outer list
-        sig   (reduce next [] args)]
+  (let [args      (-> function-var meta :arglists first)
+        arg-type  (fn [arg] (-> arg 
+                                meta 
+                                (select-keys [:word :line :block]) 
+                                first 
+                                first))
+        [v vs]    (split-with (partial not= '&) args)
+        sig       (mapv arg-type v)
+        sig       (if (seq vs) 
+                    (->> vs 
+                         next ; get rid of &
+                         (mapv arg-type)
+                         (conj sig))
+                    sig)]
     ; our signature is nearly ready, what is left, is to apply default values, if no meta data was specified
     (if (= [nil] sig)
       [:block] ; a func with a single arg will accept whole block
-      (mapv #(if (vector? %) ; handle nested [] again, we want to replace nil with :line
-               (mapv (fnil identity :line) %) ; fnil identity is like coalesce
-               ((fnil identity :line) %)) sig))))
+      (mapv 
+        (fn [s] (if (vector? s) ; handle nested [] again, we want to replace nil with :line
+                  (mapv #(or % :line) s) ; fnil identity is like coalesce
+                  (or s :line))) 
+        sig))))
 
 (defmacro signature
   "Given a function, with properly annotated arguments, it determines the signature for the corresponding blog plain text form"
